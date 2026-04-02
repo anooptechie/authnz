@@ -90,7 +90,7 @@ node server.js
 🧪 Testing (Manual)
 curl -X POST http://localhost:4000/auth/register \
 -H "Content-Type: application/json" \
--d '{"email":"test@example.com","password":"Password123"}'
+-d '{"email":"test101@example.com","password":"Password123"}'
 
 ### ✅ Milestone 3 — Login + JWT
 
@@ -192,6 +192,127 @@ POST /auth/refresh
   "error": "Invalid refresh token"
 }
 
+### ✅ Milestone 5 — Logout + Token Revocation (Redis)
 
+#### 🔹 Endpoint
+
+POST /auth/logout
+
+
+#### 🔹 Features Implemented
+- JWT revocation using Redis blocklist (denylist pattern)
+- Access token invalidation via `jti` (unique token identifier)
+- Dynamic TTL calculation based on token expiry
+- Immediate logout support (no need to wait for token expiry)
+- Middleware-based validation:
+  - Every request checks Redis for revoked tokens
+- Secure logout flow:
+  - Extract token from Authorization header
+  - Decode JWT and extract `jti`
+  - Store `jti` in Redis with expiry
+- Protected routes reject revoked tokens with `401`
+
+#### 🔹 Request
+```http
+POST /auth/logout
+Authorization: Bearer <access-token>
+🔹 Success Response
+{
+  "message": "Logged out successfully"
+}
+🔹 Failure Response
+{
+  "error": "Invalid token"
+}
+
+## 🧪 Testing Guide
+
+### 🔹 Prerequisites
+- Server running on `http://localhost:4000`
+- PostgreSQL and Redis running via Docker
+- Migrations applied
+
+---
+
+## 1️⃣ User Registration
+
+### Request
+```bash
+curl -X POST http://localhost:4000/auth/register \
+-H "Content-Type: application/json" \
+-d '{"email":"test@example.com","password":"Password123"}'
+Expected Response
+{
+  "message": "User registered successfully",
+  "userId": "uuid"
+}
+2️⃣ Login (Get Tokens)
+Request
+curl -X POST http://localhost:4000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"test@example.com","password":"Password123"}'
+Expected Response
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+3️⃣ Access Protected Route
+Request
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer <access-token>"
+Expected Response
+{
+  "message": "Access granted",
+  "user": { ... }
+}
+4️⃣ Refresh Token (Rotation)
+Request
+curl -X POST http://localhost:4000/auth/refresh \
+-H "Content-Type: application/json" \
+-d '{"refreshToken":"<refresh-token>"}'
+Expected Response
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "expiresIn": 900
+}
+5️⃣ Refresh Token Reuse (Security Check)
+Reuse OLD refresh token
+Expected Response
+{
+  "error": "Invalid refresh token"
+}
+
+👉 Ensures token rotation + replay protection
+
+6️⃣ Logout (Token Revocation)
+Request
+curl -X POST http://localhost:4000/auth/logout \
+-H "Authorization: Bearer <access-token>"
+Expected Response
+{
+  "message": "Logged out successfully"
+}
+7️⃣ Access After Logout (Revoked Token)
+Request
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer <access-token>"
+Expected Response
+{
+  "error": "Token revoked"
+}
+
+👉 Ensures Redis blocklist is working
+
+✅ Test Coverage Summary
+User registration flow
+Secure login with JWT issuance
+Protected route access via middleware
+Refresh token rotation and invalidation
+Replay attack prevention (old token reuse)
+Logout with instant token revocation
+Redis-backed access control enforcement
 
   

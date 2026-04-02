@@ -3,6 +3,10 @@ const router = express.Router();
 
 const { isValidEmail, isStrongPassword } = require("../../utils/validate");
 const authService = require("../../services/authService");
+const jwt = require("jsonwebtoken");
+const blocklist = require("../../services/blocklistService");
+const tokenService = require("../../services/tokenService");
+const config = require("../../config/env");
 
 router.post("/register", async (req, res) => {
     try {
@@ -79,5 +83,29 @@ router.post("/refresh", async (req, res) => {
         });
     }
 });
+
+router.post("/logout", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader) {
+            return res.status(400).json({ error: "Missing token" });
+        }
+
+        const token = authHeader.split(" ")[1];
+
+        const decoded = jwt.verify(token, config.jwt.secret);
+
+        const ttl = tokenService.getTokenExpiry(decoded);
+
+        await blocklist.addToBlocklist(decoded.jti, ttl);
+
+        res.json({ message: "Logged out successfully" });
+
+    } catch (err) {
+        res.status(401).json({ error: "Invalid token" });
+    }
+});
+
 
 module.exports = router;

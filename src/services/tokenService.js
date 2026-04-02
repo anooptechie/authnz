@@ -29,4 +29,15 @@ const hashRefreshToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
-module.exports = { issueAccessToken, generateRefreshToken, hashRefreshToken };
+const getTokenExpiry = (decoded) => {
+  return decoded.exp - Math.floor(Date.now() / 1000);
+};
+
+module.exports = {
+  issueAccessToken,
+  generateRefreshToken,
+  hashRefreshToken,
+  getTokenExpiry,
+};
+
+// module.exports = { issueAccessToken, generateRefreshToken, hashRefreshToken };
