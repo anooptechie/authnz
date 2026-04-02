@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { randomUUID } = require("crypto");
 const config = require("../config/env");
+const crypto = require("crypto")
 
 const issueAccessToken = (user) => {
   const jti = randomUUID();
@@ -20,4 +21,12 @@ const issueAccessToken = (user) => {
   return { token, jti };
 };
 
-module.exports = { issueAccessToken };
+const generateRefreshToken = () => {
+  return crypto.randomBytes(64).toString("hex");
+};
+
+const hashRefreshToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
+module.exports = { issueAccessToken, generateRefreshToken, hashRefreshToken };

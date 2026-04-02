@@ -153,4 +153,45 @@ POST /auth/login
 - crypto (Node.js)  
   Generates unique JWT IDs (jti) for future token revocation
 
+### ✅ Milestone 4 — Refresh Token System
+
+#### 🔹 Endpoints
+
+POST /auth/refresh
+
+
+#### 🔹 Features Implemented
+- Refresh token generation using `crypto.randomBytes`
+- Secure storage of refresh tokens as SHA-256 hashes (no plaintext storage)
+- Refresh token persistence in PostgreSQL with expiry tracking
+- Token rotation on every `/auth/refresh` call:
+  - Old refresh token is revoked
+  - New refresh token is issued
+- One-time-use refresh token model (prevents replay attacks)
+- Theft detection:
+  - Reuse of a revoked token triggers full session invalidation
+  - All user refresh tokens are revoked
+  - `TOKEN_THEFT_DETECTED` audit event logged
+- Expiry validation for refresh tokens
+- Consistent error handling:
+  - `401` for invalid, revoked, or expired tokens
+
+#### 🔹 Request
+```json
+{
+  "refreshToken": "your-refresh-token"
+}
+🔹 Success Response
+{
+  "accessToken": "new-access-token",
+  "refreshToken": "new-refresh-token",
+  "expiresIn": 900
+}
+🔹 Failure Response
+{
+  "error": "Invalid refresh token"
+}
+
+
+
   

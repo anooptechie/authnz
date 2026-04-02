@@ -48,9 +48,31 @@ router.post("/login", async (req, res) => {
 
         res.status(200).json({
             accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
             tokenType: "Bearer",
             expiresIn: result.expiresIn,
         });
+    } catch (err) {
+        res.status(err.status || 500).json({
+            error: err.message || "Internal server error",
+        });
+    }
+});
+
+router.post("/refresh", async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(400).json({ error: "Missing refresh token" });
+        }
+
+        const result = await authService.refresh(refreshToken, {
+            ip: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+
+        res.json(result);
     } catch (err) {
         res.status(err.status || 500).json({
             error: err.message || "Internal server error",
