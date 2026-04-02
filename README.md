@@ -79,6 +79,7 @@ auth-service/
 ├── server.js
 ├── docker-compose.yml
 ├── .env
+
 ⚙️ How to Run
 1. Start services
 docker compose up -d
@@ -90,3 +91,66 @@ node server.js
 curl -X POST http://localhost:4000/auth/register \
 -H "Content-Type: application/json" \
 -d '{"email":"test@example.com","password":"Password123"}'
+
+### ✅ Milestone 3 — Login + JWT
+
+#### 🔹 Endpoint
+
+POST /auth/login
+
+#### 🔹 Features Implemented
+- Credential validation using bcrypt.compare (async)
+- Secure authentication flow with no information leakage
+- JWT access token generation using `jsonwebtoken`
+- Token payload includes:
+  - `userId`
+  - `email`
+  - `role`
+  - `isActive`
+  - `jti` (unique token ID for revocation)
+- Centralized token logic via `tokenService`
+- Audit logging implemented for:
+  - LOGIN (successful authentication)
+  - LOGIN_FAILED (invalid credentials, inactive account)
+- Metadata captured in audit logs:
+  - IP address
+  - User-Agent
+- Consistent error handling:
+  - `401` for all authentication failures
+
+#### 🔹 Request
+```json
+{
+  "email": "user@example.com",
+  "password": "Password123"
+}
+
+🔹 Success Response
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+🔹 Failure Response
+{
+  "error": "Invalid credentials"
+}
+
+## 🧩 Core Components
+
+- tokenService.js  
+  Handles JWT creation, payload structure, and token configuration
+
+- auditLog.model.js  
+  Centralized audit logging for authentication events (LOGIN, LOGIN_FAILED)
+
+- bcrypt  
+  Secure password hashing and verification
+
+- jsonwebtoken  
+  Access token generation with signed payload
+
+- crypto (Node.js)  
+  Generates unique JWT IDs (jti) for future token revocation
+
+  
