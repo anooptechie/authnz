@@ -412,3 +412,44 @@ Missing/invalid token → ❌ Unauthorized (401)
 - Demonstrates real-world RBAC usage  
 - Improves system security and control  
 - Supports admin-level operations 
+
+### ✅ Milestone 10 — Health Check & Trace ID (Observability)
+
+#### 🔹 Features Implemented
+
+- Health check endpoint (`/health`) for service monitoring
+- Trace ID middleware for request tracking
+- Unique `traceId` generated for every incoming request
+- `traceId` attached to:
+  - Request object (`req.traceId`)
+  - Response headers (`X-Trace-Id`)
+  - Structured logs (via pino-http)
+- Integrated traceId into error logs for better debugging
+
+---
+
+#### 🔹 Health Endpoint
+
+**Request**
+```bash
+curl http://localhost:4000/health
+
+Response
+
+{
+  "status": "ok",
+  "uptime": 123.45,
+  "timestamp": "2026-04-01T12:00:00.000Z"
+}
+🔹 Trace ID Flow
+Middleware generates a unique UUID per request
+Attached to request (req.traceId)
+Added to response header:
+X-Trace-Id: <uuid>
+Included in logs for request correlation
+🔹 Example Log (with traceId)
+{
+  "level": 30,
+  "traceId": "b3f1c2...",
+  "msg": "request completed"
+}
