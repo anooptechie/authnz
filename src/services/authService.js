@@ -3,12 +3,16 @@ const userModel = require("../models/user.model");
 const tokenService = require("./tokenService");
 const auditLog = require("../models/auditLog.model");
 const refreshTokenModel = require("../models/refreshToken.model");
+const logger = require("../config/logger");
 
 const SALT_ROUNDS = 12;
 
 const register = async (email, password) => {
+    logger.info({ email }, "Register attempt");
+
     const existing = await userModel.findByEmail(email);
     if (existing) {
+        logger.warn({ email }, "Register failed: Email already exists");
         throw { status: 409, message: "Email already registered" };
     }
 
@@ -16,13 +20,19 @@ const register = async (email, password) => {
 
     const user = await userModel.create({ email, passwordHash });
 
+    logger.info({ userId: user.id, email }, "User registered successfully");
+
     return user;
 };
 
 const login = async (email, password, meta) => {
+    logger.info({ email, ip: meta.ip }, "Login attempt");
+
     const user = await userModel.findByEmail(email);
 
     if (!user || !user.is_active) {
+        logger.warn({ email }, "Login failed: Invalid credentials");
+
         await auditLog.create({
             userId: user?.id || null,
             action: "LOGIN_FAILED",
@@ -37,6 +47,8 @@ const login = async (email, password, meta) => {
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) {
+        logger.warn({ userId: user.id }, "Login failed: Invalid password");
+
         await auditLog.create({
             userId: user.id,
             action: "LOGIN_FAILED",
@@ -57,13 +69,13 @@ const login = async (email, password, meta) => {
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const refreshTokenModel = require("../models/refreshToken.model");
-
     await refreshTokenModel.create({
         userId: user.id,
         tokenHash,
         expiresAt,
     });
+
+    logger.info({ userId: user.id }, "Login successful");
 
     // fire-and-forget audit log
     auditLog.create({
@@ -82,56 +94,64 @@ const login = async (email, password, meta) => {
 };
 
 const refresh = async (refreshToken, meta) => {
-  const hash = tokenService.hashRefreshToken(refreshToken);
+    logger.info({ ip: meta.ip }, "Refresh token attempt");
 
-  const token = await refreshTokenModel.findByHash(hash);
+    const hash = tokenService.hashRefreshToken(refreshToken);
 
-  if (!token) {
-    throw { status: 401, message: "Invalid refresh token" };
-  }
+    const token = await refreshTokenModel.findByHash(hash);
 
-  if (token.revoked) {
-    // THEFT DETECTED
-    await refreshTokenModel.revokeAllByUserId(token.user_id);
+    if (!token) {
+        logger.warn("Refresh failed: Token not found");
+        throw { status: 401, message: "Invalid refresh token" };
+    }
 
-    await auditLog.create({
-      userId: token.user_id,
-      action: "TOKEN_THEFT_DETECTED",
-      ipAddress: meta.ip,
-      userAgent: meta.userAgent,
-      metadata: {},
+    if (token.revoked) {
+        logger.error({ userId: token.user_id }, "Refresh token reuse detected (THEFT)");
+
+        // THEFT DETECTED
+        await refreshTokenModel.revokeAllByUserId(token.user_id);
+
+        await auditLog.create({
+            userId: token.user_id,
+            action: "TOKEN_THEFT_DETECTED",
+            ipAddress: meta.ip,
+            userAgent: meta.userAgent,
+            metadata: {},
+        });
+
+        throw { status: 401, message: "Invalid refresh token" };
+    }
+
+    if (new Date(token.expires_at) < new Date()) {
+        logger.warn({ userId: token.user_id }, "Refresh failed: Token expired");
+        throw { status: 401, message: "Token expired" };
+    }
+
+    // rotate token
+    await refreshTokenModel.revokeByHash(hash);
+
+    const newRefreshToken = tokenService.generateRefreshToken();
+    const newHash = tokenService.hashRefreshToken(newRefreshToken);
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await refreshTokenModel.create({
+        userId: token.user_id,
+        tokenHash: newHash,
+        expiresAt,
     });
 
-    throw { status: 401, message: "Invalid refresh token" };
-  }
+    const user = { id: token.user_id, role: "viewer" };
 
-  if (new Date(token.expires_at) < new Date()) {
-    throw { status: 401, message: "Token expired" };
-  }
+    const { token: accessToken } = tokenService.issueAccessToken(user);
 
-  // rotate token
-  await refreshTokenModel.revokeByHash(hash);
+    logger.info({ userId: token.user_id }, "Refresh token rotated successfully");
 
-  const newRefreshToken = tokenService.generateRefreshToken();
-  const newHash = tokenService.hashRefreshToken(newRefreshToken);
-
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-  await refreshTokenModel.create({
-    userId: token.user_id,
-    tokenHash: newHash,
-    expiresAt,
-  });
-
-  const user = { id: token.user_id, role: "viewer" }; // minimal
-
-  const { token: accessToken } = tokenService.issueAccessToken(user);
-
-  return {
-    accessToken,
-    refreshToken: newRefreshToken,
-    expiresIn: 900,
-  };
+    return {
+        accessToken,
+        refreshToken: newRefreshToken,
+        expiresIn: 900,
+    };
 };
 
-module.exports = { register, login, refresh};
+module.exports = { register, login, refresh };

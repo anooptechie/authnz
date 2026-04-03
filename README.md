@@ -338,3 +338,28 @@ Missing/invalid token → ❌ Unauthorized (401)
 {
   "error": "Forbidden"
 }
+
+### ✅ Milestone 7 — Observability (Logging)
+
+#### 🔹 Features Implemented
+- Structured logging using Pino
+- Automatic request/response logging via middleware
+- Service-level logging for authentication flows:
+  - Login attempts
+  - Failures
+  - Token refresh events
+- Centralized error logging in route handlers
+- Audit logging integrated with structured logs
+- Resilient audit logging (failures do not affect main flow)
+- Contextual logging with:
+  - userId
+  - action
+  - IP address
+
+#### 🔹 Example Log
+```json
+{
+  "level": 30,
+  "msg": "Login successful",
+  "userId": "uuid"
+}

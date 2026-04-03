@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const blocklist = require("../../services/blocklistService");
 const tokenService = require("../../services/tokenService");
 const config = require("../../config/env");
+const logger = require("../../config/logger");
 
 router.post("/register", async (req, res) => {
     try {
@@ -31,6 +32,8 @@ router.post("/register", async (req, res) => {
             userId: user.id,
         });
     } catch (err) {
+        logger.error({ err, route: "/auth/register" }, "Register route error");
+
         res.status(err.status || 500).json({
             error: err.message || "Internal server error",
         });
@@ -57,6 +60,8 @@ router.post("/login", async (req, res) => {
             expiresIn: result.expiresIn,
         });
     } catch (err) {
+        logger.error({ err, route: "/auth/login" }, "Login route error");
+
         res.status(err.status || 500).json({
             error: err.message || "Internal server error",
         });
@@ -78,6 +83,8 @@ router.post("/refresh", async (req, res) => {
 
         res.json(result);
     } catch (err) {
+        logger.error({ err, route: "/auth/refresh" }, "Refresh route error");
+
         res.status(err.status || 500).json({
             error: err.message || "Internal server error",
         });
@@ -103,9 +110,10 @@ router.post("/logout", async (req, res) => {
         res.json({ message: "Logged out successfully" });
 
     } catch (err) {
+        logger.error({ err, route: "/auth/logout" }, "Logout route error");
+
         res.status(401).json({ error: "Invalid token" });
     }
 });
-
 
 module.exports = router;
