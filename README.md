@@ -387,3 +387,28 @@ Missing/invalid token → ❌ Unauthorized (401)
 {
   "error": "Too many requests, please try again later"
 }
+
+### ✅ Milestone 9 — User Management APIs
+
+#### 🔹 Features Implemented
+- User profile retrieval (`/users/me`)
+- Admin-only user listing (`/users`)
+- Role management (`PATCH /users/:id/role`)
+- User deactivation (soft delete)
+- Refresh token revocation on deactivation
+
+#### 🔹 Access Control
+- Protected using JWT authentication
+- Role-based authorization via middleware
+- Admin-only endpoints enforced using `authorize("admin")`
+
+#### 🔹 Audit Logging
+- ROLE_UPDATED event logged
+- USER_DEACTIVATED event logged
+- Includes IP address and user agent
+
+#### 🔹 Key Benefits
+- Enables full user lifecycle management  
+- Demonstrates real-world RBAC usage  
+- Improves system security and control  
+- Supports admin-level operations 

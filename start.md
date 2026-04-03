@@ -170,3 +170,110 @@ Invalid token → ❌ rejected
 Authentication (JWT validation)
 Authorization (role-based access control)
 
+5. User Management API
+Register → Login → Promote → Test access → Deactivate → Verify
+
+STEP 1 — Register TWO users
+👤 User 1 (will become admin)
+curl -X POST http://localhost:4000/auth/register \
+-H "Content-Type: application/json" \
+-d '{"email":"admin@test.com","password":"Password123"}'
+👤 User 2 (normal user)
+curl -X POST http://localhost:4000/auth/register \
+-H "Content-Type: application/json" \
+-d '{"email":"user@test.com","password":"Password123"}'
+🟢 STEP 2 — Login as admin user
+curl -X POST http://localhost:4000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"admin@test.com","password":"Password123"}'
+
+👉 Copy:
+
+accessToken → ADMIN_TOKEN
+🟢 STEP 3 — Promote admin user (DB step)
+
+⚠️ Do this once manually:
+
+docker exec -it auth_postgres psql -U auth_user -d auth_db
+UPDATE users SET role = 'admin' WHERE email = 'admin@test.com';
+\q
+🟢 STEP 4 — Login AGAIN (IMPORTANT)
+curl -X POST http://localhost:4000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"admin@test.com","password":"Password123"}'
+
+👉 Copy new:
+
+ADMIN_TOKEN
+🟢 STEP 5 — Login as normal user
+curl -X POST http://localhost:4000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"user@test.com","password":"Password123"}'
+
+👉 Copy:
+
+USER_TOKEN
+🟢 STEP 6 — Test /users/me
+curl http://localhost:4000/users/me \
+-H "Authorization: Bearer USER_TOKEN"
+
+✅ Expect:
+
+user email
+role = viewer
+🟢 STEP 7 — Test /users (admin)
+✅ With ADMIN token
+curl http://localhost:4000/users \
+-H "Authorization: Bearer ADMIN_TOKEN"
+
+👉 Should return all users
+
+❌ With USER token
+curl http://localhost:4000/users \
+-H "Authorization: Bearer USER_TOKEN"
+
+👉 Should return:
+
+{ "error": "Forbidden" }
+🟢 STEP 8 — Update role (admin → user)
+
+First get USER ID:
+
+curl http://localhost:4000/users \
+-H "Authorization: Bearer ADMIN_TOKEN"
+
+👉 Copy userId of user@test.com
+
+Promote user → admin
+curl -X PATCH http://localhost:4000/users/USER_ID/role \
+-H "Authorization: Bearer ADMIN_TOKEN" \
+-H "Content-Type: application/json" \
+-d '{"role":"admin"}'
+🟢 STEP 9 — Verify role update
+
+👉 Login again:
+
+curl -X POST http://localhost:4000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"user@test.com","password":"Password123"}'
+
+👉 Now token should contain:
+
+role: admin
+🟢 STEP 10 — Deactivate user
+curl -X DELETE http://localhost:4000/users/USER_ID \
+-H "Authorization: Bearer ADMIN_TOKEN"
+🟢 STEP 11 — Try login (should fail)
+curl -X POST http://localhost:4000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"user@test.com","password":"Password123"}'
+
+👉 Expect:
+
+{ "error": "Invalid credentials" }
+🟢 STEP 12 — Try refresh (optional check)
+
+If you had refresh token earlier:
+
+👉 Should fail (tokens revoked)
+

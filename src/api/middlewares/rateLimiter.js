@@ -19,17 +19,17 @@ const createRateLimiter = ({ windowMs, max }) =>
 // Different limits per route
 const loginLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 mins
-  max: 5,
+  max: 100,
 });
 
 const registerLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 3,
+  max: 100,
 });
 
 const refreshLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 100,
 });
 
 module.exports = {
