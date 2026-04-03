@@ -315,4 +315,26 @@ Replay attack prevention (old token reuse)
 Logout with instant token revocation
 Redis-backed access control enforcement
 
-  
+### ✅ Milestone 6 — RBAC (Role-Based Access Control)
+
+#### 🔹 Features Implemented
+- Role-based access control using middleware
+- `authorize(...roles)` middleware for restricting route access
+- Integration with JWT payload (`user.role`)
+- Protected routes enforce role-based permissions:
+  - Admin-only routes
+  - Authenticated user routes
+- Dynamic role updates via database (effective on next login)
+
+#### 🔹 Example Protected Routes
+```http
+GET /admin        → Admin only
+GET /profile      → Any authenticated user
+🔹 Access Control Behavior
+Viewer → ❌ Forbidden (403) for admin routes
+Admin → ✅ Access granted
+Missing/invalid token → ❌ Unauthorized (401)
+🔹 Failure Response
+{
+  "error": "Forbidden"
+}
