@@ -8,6 +8,8 @@ const blocklist = require("../../services/blocklistService");
 const tokenService = require("../../services/tokenService");
 const config = require("../../config/env");
 const logger = require("../../config/logger");
+const auditLog = require("../../models/auditLog.model");
+
 const {
     loginLimiter,
     registerLimiter,
@@ -109,6 +111,15 @@ router.post("/logout", async (req, res) => {
         const decoded = jwt.verify(token, config.jwt.secret);
 
         const ttl = tokenService.getTokenExpiry(decoded);
+
+        // 🔥 NEW: Audit log for LOGOUT
+        await auditLog.create({
+            userId: decoded.userId,
+            action: "LOGOUT",
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+            metadata: {},
+        });
 
         await blocklist.addToBlocklist(decoded.jti, ttl);
 

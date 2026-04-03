@@ -147,6 +147,15 @@ const refresh = async (refreshToken, meta) => {
 
     logger.info({ userId: token.user_id }, "Refresh token rotated successfully");
 
+    // 🔥 NEW: Audit log for TOKEN_REFRESH
+    await auditLog.create({
+        userId: token.user_id,
+        action: "TOKEN_REFRESH",
+        ipAddress: meta.ip,
+        userAgent: meta.userAgent,
+        metadata: {},
+    });
+
     return {
         accessToken,
         refreshToken: newRefreshToken,

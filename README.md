@@ -453,3 +453,17 @@ Included in logs for request correlation
   "traceId": "b3f1c2...",
   "msg": "request completed"
 }
+
+#### 🔹 Audit Logging (Updated)
+
+Now tracks complete authentication lifecycle:
+
+- LOGIN  
+- LOGIN_FAILED  
+- TOKEN_REFRESH  
+- TOKEN_THEFT_DETECTED  
+- LOGOUT  
+- ROLE_UPDATED  
+- USER_DEACTIVATED  
+
+Ensures full visibility into user activity and security events.
