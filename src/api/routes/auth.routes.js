@@ -8,8 +8,13 @@ const blocklist = require("../../services/blocklistService");
 const tokenService = require("../../services/tokenService");
 const config = require("../../config/env");
 const logger = require("../../config/logger");
+const {
+    loginLimiter,
+    registerLimiter,
+    refreshLimiter,
+} = require("../middlewares/rateLimiter");
 
-router.post("/register", async (req, res) => {
+router.post("/register", registerLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -40,7 +45,7 @@ router.post("/register", async (req, res) => {
     }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -68,7 +73,7 @@ router.post("/login", async (req, res) => {
     }
 });
 
-router.post("/refresh", async (req, res) => {
+router.post("/refresh", refreshLimiter, async (req, res) => {
     try {
         const { refreshToken } = req.body;
 

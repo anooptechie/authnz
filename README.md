@@ -363,3 +363,27 @@ Missing/invalid token → ❌ Unauthorized (401)
   "msg": "Login successful",
   "userId": "uuid"
 }
+
+### ✅ Milestone 8 — Rate Limiting (Abuse Protection)
+
+#### 🔹 Features Implemented
+- Redis-backed rate limiting for authentication endpoints
+- IP-based request throttling to prevent abuse and brute-force attacks
+- Distributed rate limiting using Redis store (scalable across instances)
+- Route-specific limits for better control:
+  - `/auth/login` → strict limit (prevents brute-force)
+  - `/auth/register` → moderate limit (prevents spam accounts)
+  - `/auth/refresh` → relaxed limit (normal usage)
+
+#### 🔹 Rate Limit Configuration
+- Window: 15 minutes  
+- Limits:
+  - Login → 5 requests  
+  - Register → 3 requests  
+  - Refresh → 10 requests  
+
+#### 🔹 Failure Response
+```json
+{
+  "error": "Too many requests, please try again later"
+}
