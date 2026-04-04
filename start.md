@@ -277,3 +277,74 @@ If you had refresh token earlier:
 
 👉 Should fail (tokens revoked)
 
+6. Health Check Endpoint
+curl -i http://localhost:4000/health
+
+7. CLAIMS VALIDATION TEST
+
+🧪 1. Valid Token (Control Test — should PASS)
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer <valid-access-token>"
+✅ Expected
+{
+  "message": "Access granted",
+  "user": { ... }
+}
+🧪 2. Invalid Role (Tampered Token)
+🔧 Modify payload (via jwt.io or script):
+{
+  "role": "superadmin"
+}
+Test
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer <tampered-token>"
+❌ Expected
+{
+  "error": "Invalid token claims (role)"
+}
+🧪 3. Missing / Invalid userId
+🔧 Payload:
+{
+  "role": "admin"
+}
+
+OR invalid format:
+
+{
+  "userId": "123",
+  "role": "admin"
+}
+Test
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer <tampered-token>"
+❌ Expected
+{
+  "error": "Invalid token claims (userId)"
+}
+🧪 4. isActive = false (Deactivated User)
+🔧 Payload:
+{
+  "userId": "valid-uuid",
+  "role": "admin",
+  "isActive": false
+}
+Test
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer <tampered-token>"
+❌ Expected
+{
+  "error": "Account deactivated"
+}
+🧪 5. Invalid Token Format (Bonus — important)
+curl http://localhost:4000/protected \
+-H "Authorization: Bearer invalidtoken"
+❌ Expected
+{
+  "error": "Invalid token"
+}
+🧪 6. Missing Authorization Header
+curl http://localhost:4000/protected
+❌ Expected
+{
+  "error": "Missing or invalid token format"
+}

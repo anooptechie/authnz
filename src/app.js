@@ -10,6 +10,8 @@ const pinoHttp = require("pino-http");
 const logger = require("./config/logger");
 
 const traceIdMiddleware = require("./api/middlewares/traceId");
+const db = require("./db/postgres");
+const redis = require("./db/redis");
 
 const app = express();
 
@@ -34,9 +36,34 @@ app.get("/", (req, res) => {
   res.send("Auth Service Running");
 });
 
-app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
+app.get("/health", async (req, res) => {
+  let postgresStatus = "connected";
+  let redisStatus = "connected";
+
+  // 🔹 Check Postgres
+  try {
+    await db.query("SELECT 1");
+  } catch (err) {
+    postgresStatus = "disconnected";
+    logger.error({ err, traceId: req.traceId }, "Postgres health check failed");
+  }
+
+  // 🔹 Check Redis
+  try {
+    await redis.ping();
+  } catch (err) {
+    redisStatus = "disconnected";
+    logger.error({ err, traceId: req.traceId }, "Redis health check failed");
+  }
+
+  // 🔹 Overall status
+  const isHealthy =
+    postgresStatus === "connected" && redisStatus === "connected";
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? "ok" : "degraded",
+    postgres: postgresStatus,
+    redis: redisStatus,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });

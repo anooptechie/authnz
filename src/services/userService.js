@@ -30,7 +30,7 @@ const updateUserRole = async (targetUserId, role, meta) => {
     // Audit log
     await auditLog.create({
         userId: targetUserId,
-        action: "ROLE_UPDATED",
+        action: "ROLE_CHANGED",
         ipAddress: meta.ip,
         userAgent: meta.userAgent,
         metadata: { newRole: role },

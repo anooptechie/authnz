@@ -403,7 +403,7 @@ Missing/invalid token → ❌ Unauthorized (401)
 - Admin-only endpoints enforced using `authorize("admin")`
 
 #### 🔹 Audit Logging
-- ROLE_UPDATED event logged
+- ROLE_CHANGED event logged
 - USER_DEACTIVATED event logged
 - Includes IP address and user agent
 
@@ -463,7 +463,100 @@ Now tracks complete authentication lifecycle:
 - TOKEN_REFRESH  
 - TOKEN_THEFT_DETECTED  
 - LOGOUT  
-- ROLE_UPDATED  
+- ROLE_CHANGED 
 - USER_DEACTIVATED  
 
 Ensures full visibility into user activity and security events.
+
+### Production Readiness Improvements
+
+As part of strengthening the system beyond basic functionality, several critical production-level gaps were identified and resolved. These fixes focus on correctness, security, and observability.
+
+🔹 1. Health Check — Dependency Awareness
+
+Problem:
+The /health endpoint always returned "ok" regardless of system state. This meant the service appeared healthy even if PostgreSQL or Redis was down.
+
+Fix Implemented:
+
+Added runtime checks for:
+PostgreSQL → SELECT 1
+Redis → PING
+Endpoint now reports individual dependency status
+Returns appropriate HTTP status:
+200 OK → all dependencies healthy
+503 Service Unavailable → degraded state
+
+Example Response:
+
+{
+  "status": "degraded",
+  "postgres": "connected",
+  "redis": "disconnected"
+}
+
+Why It Matters:
+
+Enables accurate health detection by load balancers
+Prevents traffic routing to unhealthy instances
+Aligns with real production monitoring practices
+🔹 2. JWT Claims Validation — Security Hardening
+
+Problem:
+JWT signature verification alone was not sufficient. The system trusted token payloads without validating their structure or integrity.
+
+Fix Implemented:
+Added explicit claims validation after token verification:
+
+userId → must exist and be a valid UUID
+role → must be one of: admin, manager, viewer
+isActive → must be true
+(Optional hardening) jti presence validation
+
+Why It Matters:
+
+Prevents privilege escalation (e.g., forged role: admin)
+Ensures only valid and expected claims are trusted
+Enforces account state at the middleware level
+🔹 3. Audit Event Standardization
+
+Problem:
+Inconsistent audit event naming (ROLE_UPDATED vs ROLE_CHANGED) created potential issues for logging, querying, and analytics.
+
+Fix Implemented:
+
+Standardized event name to: ROLE_CHANGED
+Updated all references across:
+Service logic
+Audit logging
+Documentation
+
+Why It Matters:
+
+Ensures consistency across logs and systems
+Prevents broken queries and monitoring pipelines
+Improves maintainability and observability
+🔹 4. Manual Security Validation (Negative Testing)
+
+Enhancement:
+Extended manual testing to include negative and adversarial scenarios:
+
+Tampered JWT payload (invalid role)
+Missing/invalid userId
+isActive = false (deactivated user)
+Missing/invalid token format
+Revoked token usage
+
+Why It Matters:
+
+Validates system behavior under attack scenarios
+Confirms security assumptions are enforced
+Moves testing beyond happy-path validation
+✅ Outcome
+
+These fixes elevate the system from a functional implementation to a production-aware authentication service with:
+
+Accurate health monitoring
+Stronger security boundaries
+Consistent audit logging
+Verified behavior under failure and attack conditions
