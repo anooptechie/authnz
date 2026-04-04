@@ -2,8 +2,16 @@ const rateLimit = require("express-rate-limit");
 const RedisStore = require("rate-limit-redis").default;
 const redisClient = require("../../db/redis"); // your redis connection
 
-const createRateLimiter = ({ windowMs, max }) =>
-  rateLimit({
+// 🔥 Detect test environment
+const isTest = process.env.NODE_ENV === "test";
+
+const createRateLimiter = ({ windowMs, max }) => {
+  // 🔥 Bypass rate limiter during tests
+  if (isTest) {
+    return (req, res, next) => next();
+  }
+
+  return rateLimit({
     store: new RedisStore({
       sendCommand: (...args) => redisClient.call(...args),
     }),
@@ -15,6 +23,7 @@ const createRateLimiter = ({ windowMs, max }) =>
       error: "Too many requests, please try again later",
     },
   });
+};
 
 // Different limits per route
 const loginLimiter = createRateLimiter({
@@ -37,4 +46,3 @@ module.exports = {
   registerLimiter,
   refreshLimiter,
 };
-

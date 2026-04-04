@@ -1,15 +1,24 @@
 {
   "name": "auth-service",
   "version": "1.0.0",
-  "description": "",
+  "description": "A standalone, production-grade Authentication & Authorization service built using Node.js, Express, PostgreSQL, and Redis.",
+  "keywords": [],
+  "homepage": "https://github.com/anooptechie/authnz#readme",
+  "bugs": {
+    "url": "https://github.com/anooptechie/authnz/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anooptechie/authnz.git"
+  },
+  "license": "ISC",
+  "author": "Anoop",
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "dotenv": "^17.3.1",

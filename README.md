@@ -560,3 +560,18 @@ Accurate health monitoring
 Stronger security boundaries
 Consistent audit logging
 Verified behavior under failure and attack conditions
+
+## 🧪 Testing (CI-Ready)
+
+auth.login.test.js
+- Implemented integration-style tests using Jest + Supertest
+- Mocked PostgreSQL and Redis for isolated testing
+- Bypassed infrastructure concerns (rate limiter) during tests
+- Covered critical auth flows:
+  - Successful login
+  - Invalid credentials handling
+- Verified audit logging and response correctness
+
+Tests run without requiring external services.
+
+
