@@ -561,28 +561,274 @@ Stronger security boundaries
 Consistent audit logging
 Verified behavior under failure and attack conditions
 
-## 🧪 Testing (CI-Ready)
+## 🧪 Testing Implementation
 
-$ auth.login.test.js
-- Implemented integration-style tests using Jest + Supertest
-- Mocked PostgreSQL and Redis for isolated testing
-- Bypassed infrastructure concerns (rate limiter) during tests
-- Covered critical auth flows:
-  - Successful login
-  - Invalid credentials handling
-- Verified audit logging and response correctness
+The authentication service includes **integration-style automated tests** to validate core functionality, security boundaries, and token lifecycle behavior.
 
-Tests run without requiring external services.
+Tests are written using **Jest** and **Supertest**, simulating real HTTP requests across the application stack.
 
-$ Authenticate Middleware Tests
+---
 
-Validates JWT verification + claims validation:
+## 🔹 Testing Approach
 
-✔ Valid token → access granted
-✔ Missing token → rejected
-✔ Invalid token → rejected
-✔ Invalid role → rejected
-✔ Missing userId → rejected
-✔ isActive = false → rejected
-✔ Revoked token → rejected
+* Focus on **integration testing** over isolated unit tests
+* Covers full flow:
+
+  ```
+  Request → Route → Middleware → Service → Database (mocked) → Response
+  ```
+* External dependencies are mocked:
+
+  * PostgreSQL → mocked using `jest`
+  * Redis → bypassed / mocked where required
+  * Rate limiter → disabled in test environment
+
+---
+
+## 📂 Test Structure
+
+```
+src/__tests__/
+├── auth.login.test.js
+├── middleware.authenticate.test.js
+├── auth.refresh.test.js
+├── auth.logout.test.js
+└── setup.js
+```
+
+---
+
+# 🔐 1. Auth Login Tests
+
+Validates user authentication and credential handling.
+
+### ✅ Covered Scenarios
+
+* Successful login returns:
+
+  * Access token
+  * Refresh token
+* Invalid password returns `401`
+* Audit logs recorded for:
+
+  * Login success
+  * Login failure
+
+### 🎯 What this ensures
+
+* Password verification is correct
+* Token issuance works correctly
+* Authentication failures are properly handled
+
+---
+
+# 🛡 2. Authenticate Middleware Tests
+
+Validates **JWT verification and claims validation**.
+
+### ✅ Covered Scenarios
+
+* Valid token → access granted
+* Missing token → rejected
+* Invalid token → rejected
+* Invalid role → rejected
+* Missing `userId` → rejected
+* Inactive user (`isActive = false`) → rejected
+* Revoked token → rejected
+
+### 🎯 What this ensures
+
+* JWT payload is not blindly trusted
+* Claims are strictly validated
+* Unauthorized access is blocked
+* Token revocation is enforced
+
+---
+
+# 🔁 3. Refresh Token Flow Tests
+
+Validates **refresh token rotation and security mechanisms**.
+
+### ✅ Covered Scenarios
+
+* Valid refresh token:
+
+  * Issues new access token
+  * Rotates refresh token
+* Reused refresh token:
+
+  * Detected as replay attack
+  * Request rejected
+* Invalid token:
+
+  * Request rejected
+
+### 🎯 What this ensures
+
+* Secure session continuation
+* Replay attack protection
+* Proper token rotation implementation
+
+---
+
+# 🚪 4. Logout Flow Tests
+
+Validates **session termination using access tokens**.
+
+### ✅ Covered Scenarios
+
+* Valid JWT → logout successful
+* Invalid token → rejected
+
+### 🎯 What this ensures
+
+* Access token validation during logout
+* Proper session termination flow
+* Audit logging for logout events
+
+---
+
+## 🔒 Security Coverage
+
+The test suite ensures:
+
+* Strict JWT claims validation
+* Protection against privilege escalation
+* Refresh token replay attack detection
+* Token revocation enforcement
+* Secure logout handling
+
+---
+
+## ⚙️ Test Environment
+
+* `NODE_ENV = test`
+* Rate limiter disabled during tests
+* No real DB or Redis required
+* All external dependencies mocked
+
+---
+
+## ▶️ Running Tests
+
+```bash
+npm test
+```
+
+---
+
+## ✅ Outcome
+
+* 4 test suites
+* 14+ test cases
+* Full authentication lifecycle covered
+* CI-ready test setup
+
+---
+
+## 🚀 Continuous Integration (CI)
+
+The project includes a **GitHub Actions CI pipeline** to automatically validate the system on every code change.
+
+---
+
+## 🔹 CI Overview
+
+* Runs on:
+
+  * Every push to `main`
+  * Every pull request to `main`
+* Automatically executes:
+
+  ```
+  npm install
+  npm test
+  ```
+* Ensures all authentication flows and security checks pass before merging
+
+---
+
+## ⚙️ CI Configuration
+
+CI is configured using GitHub Actions:
+
+```text id="m1s7xp"
+.github/workflows/ci.yml
+```
+
+### 🔧 Workflow Steps
+
+1. Checkout repository
+2. Setup Node.js environment
+3. Install dependencies
+4. Run test suite
+
+---
+
+## 🔐 Environment Configuration
+
+CI uses environment variables defined inside the workflow:
+
+* JWT secrets
+* Database configuration (mocked)
+* Redis configuration (mocked)
+* Test environment (`NODE_ENV=test`)
+
+This ensures:
+
+* No dependency on external services
+* Fully isolated test execution
+* Consistent results across environments
+
+---
+
+## 🧪 CI + Testing Integration
+
+* Tests run in a **clean environment** every time
+* PostgreSQL and Redis are **mocked**
+* Rate limiter is **disabled during tests**
+
+This guarantees:
+
+* No “works on my machine” issues
+* Reliable and repeatable test execution
+* Fast feedback on failures
+
+---
+
+## ✅ CI Status
+
+* All test suites pass in CI
+* Authentication flows verified automatically
+* Security checks enforced on every commit
+
+---
+
+## 🎯 What CI Ensures
+
+* Code correctness before deployment
+* Early detection of bugs and regressions
+* Consistent behavior across environments
+* Confidence in authentication and security logic
+
+---
+
+## ▶️ How It Works (High-Level)
+
+```text id="h8x7cz"
+Developer Push → GitHub Actions Triggered → Install Dependencies → Run Tests → Pass/Fail
+```
+
+---
+
+## 🧠 Key Benefit
+
+CI transforms the project from:
+
+❌ Manual testing
+➡️
+✅ Automated, reliable validation system
+
+---
+
 
