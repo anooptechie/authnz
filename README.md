@@ -563,7 +563,7 @@ Verified behavior under failure and attack conditions
 
 ## 🧪 Testing (CI-Ready)
 
-auth.login.test.js
+$ auth.login.test.js
 - Implemented integration-style tests using Jest + Supertest
 - Mocked PostgreSQL and Redis for isolated testing
 - Bypassed infrastructure concerns (rate limiter) during tests
@@ -574,4 +574,15 @@ auth.login.test.js
 
 Tests run without requiring external services.
 
+$ Authenticate Middleware Tests
+
+Validates JWT verification + claims validation:
+
+✔ Valid token → access granted
+✔ Missing token → rejected
+✔ Invalid token → rejected
+✔ Invalid role → rejected
+✔ Missing userId → rejected
+✔ isActive = false → rejected
+✔ Revoked token → rejected
 

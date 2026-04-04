@@ -9,7 +9,8 @@ const required = [
   "POSTGRES_DB",
   "REDIS_HOST",
   "REDIS_PORT",
-  "JWT_SECRET"
+  "JWT_SECRET",
+  "JWT_REFRESH_SECRET" // 🔥 ADD THIS
 ];
 
 required.forEach((key) => {
@@ -33,6 +34,7 @@ module.exports = Object.freeze({
   },
   jwt: {
     secret: process.env.JWT_SECRET,
+    refreshSecret: process.env.JWT_REFRESH_SECRET, // 🔥 ADD THIS
     expiresIn: process.env.JWT_EXPIRES_IN,
   },
 });
