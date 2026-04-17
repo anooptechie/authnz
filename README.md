@@ -439,6 +439,128 @@ router.get('/me', authenticate, getProfile);
 
 ---
 
+Architectural Evolution of the Rate Limit Implementation
+
+🔒 Milestone 8 — Rate Limiting (Distributed)
+🎯 Overview
+
+Rate limiting is implemented using an external Rate Limiter Service, replacing the previous in-app Redis-based throttling.
+
+This enables:
+
+Distributed rate limiting across services
+Centralized control of traffic policies
+Better scalability and observability
+Decoupling from authentication logic
+
+⚙️ Key Features
+✅ External Rate Limiter Service integration (via HTTP)
+✅ Token Bucket algorithm for smoother traffic handling
+✅ User-aware rate limiting (email + IP)
+✅ Protection against brute-force and abuse
+✅ Returns 429 Too Many Requests with retry hints
+✅ Fail-open strategy to ensure system availability
+✅ Rate limiting applied before authentication logic
+
+🧠 Rate Limiting Strategy
+🔑 Key Design
+login:${normalizedEmail}:${ip}
+Prevents brute-force attacks per user
+Avoids blocking users behind shared IPs
+Ensures isolation between users
+
+🔄 Email Normalization
+email → lowercase + trimmed
+
+Prevents bypass such as:
+
+Test@Email.com ≠ test@email.com
+⚡ Algorithm Used
+Token Bucket
+
+Why Token Bucket?
+
+Allows short bursts (better UX for login attempts)
+Prevents sustained abuse
+Models real-world user behavior
+
+📊 Configuration
+Endpoint	Limit	Window	Algorithm	Purpose
+/auth/login	10 requests	15 minutes	Token Bucket	Brute-force protection
+
+Note: Other endpoints (register, refresh) still use internal rate limiting (can be migrated later)
+
+🔁 Request Flow
+Client
+   ↓
+Auth Service (/login)
+   ↓
+Input Validation
+   ↓
+Rate Limiter Service (/check)
+   ↓
+Decision (allowed / blocked)
+   ↓
+Authentication Logic (DB, JWT)
+
+🚫 Blocking Behavior
+
+When limit is exceeded:
+
+{
+  "error": "Too many login attempts",
+  "retryAfter": 120
+}
+HTTP Status: 429
+Includes retry hint from Rate Limiter Service
+
+🛡️ Fail-Open Strategy (Critical)
+
+If the Rate Limiter Service is unavailable:
+
+Request is allowed
+Why?
+Prevents user-facing outages
+Ensures authentication availability
+Avoids cascading failures
+
+⚙️ Execution Order
+1. Validate request (email, password)
+2. Apply rate limiting
+3. Execute authentication logic
+Why this order?
+Avoids consuming tokens for invalid requests
+Reduces unnecessary load on Rate Limiter
+Protects database from abuse
+
+🧪 Validation & Testing
+✅ Multiple users tested → no cross-user blocking
+✅ Excess requests → correctly return 429
+✅ Token bucket behavior verified (burst + refill)
+✅ Fail-open tested by stopping Rate Limiter Service
+✅ Integration verified via logs (Auth ↔ Rate Limiter)
+
+🔥 Key Improvements Over Previous Approach
+Feature	Old (In-App Redis)	New (Rate Limiter Service)
+Scope	Single service	Distributed
+Scalability	Limited	High
+Reusability	Low	High
+Observability	Basic	Centralized
+Failure Handling	Fail-closed	Fail-open
+Algorithm	Fixed	Token Bucket
+
+🚀 Outcome
+
+This upgrade transforms rate limiting from:
+
+"Middleware inside auth service"
+
+to:
+
+"A distributed, production-ready rate limiting system"
+
+---
+
 ### Milestone 9 — User Management APIs
 
 **Endpoints:**
