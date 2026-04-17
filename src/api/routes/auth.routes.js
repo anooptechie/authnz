@@ -89,12 +89,15 @@ router.post("/login", async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     // 🔥 Rate Limiter Integration
+    const traceId = req.traceId;
+
     const rateLimitResult = await checkRateLimit({
-      key: `login:${normalizedEmail}:${req.ip}`, // ✅ fixed
+      key: `login:${normalizedEmail}:${req.ip}`,
       algorithm: "token-bucket",
       limit: 10,
-      window: 900, // 15 minutes
+      window: 900,
       cost: 1,
+      traceId, // 🔥 pass it
     });
 
     // 🔒 Block if limit exceeded

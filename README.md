@@ -559,6 +559,69 @@ to:
 
 "A distributed, production-ready rate limiting system"
 
+🔍 End-to-End Trace Propagation
+
+🎯 Overview
+
+The Authentication Service implements distributed trace propagation to enable end-to-end request tracking across services.
+
+Each incoming request is assigned a unique traceId, which is propagated to downstream services (Rate Limiter Service) via HTTP headers.
+
+⚙️ How It Works
+1. Trace ID Generation (Entry Point)
+
+📁 src/api/middlewares/traceId.js
+
+If client provides x-trace-id → reuse it
+Otherwise → generate a new UUID
+traceId = incoming header || randomUUID()
+2. Attach to Request Context
+Stored as:
+req.traceId
+Added to response headers:
+X-Trace-Id: <traceId>
+
+3. Propagation to Rate Limiter Service
+
+📁 rateLimitClient.js
+
+headers: {
+  "x-trace-id": traceId
+}
+Ensures downstream services receive the same traceId
+4. Logging
+
+All logs include:
+
+traceId
+
+Example:
+
+traceId: "7fe9215e-daf2-4e36-8e5d-7f5bcf0b7718"
+
+🔁 Request Flow
+Client
+   ↓ (optional x-trace-id)
+Auth Service (traceId middleware)
+   ↓ (propagates x-trace-id)
+Rate Limiter Service
+
+🧪 Validation
+Verified that same traceId appears in:
+Auth Service logs
+Rate Limiter logs
+Response headers
+
+🧠 Key Design Principle
+
+Trace ID is generated once at the system entry point and reused across all services.
+
+🚀 Benefits
+Enables debugging across services
+Correlates logs for a single request
+Improves observability in distributed systems
+Forms the foundation for OpenTelemetry-style tracing
+
 ---
 
 ### Milestone 9 — User Management APIs

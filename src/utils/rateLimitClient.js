@@ -1,27 +1,26 @@
 const axios = require("axios");
 
-const RATE_LIMITER_URL = process.env.RATE_LIMITER_URL || "http://localhost:3000";
+const RATE_LIMITER_URL =
+  process.env.RATE_LIMITER_URL || "http://localhost:3000";
 
 async function checkRateLimit({
   key,
-  algorithm = "token-bucket",
+  algorithm,
   limit,
   window,
   cost = 1,
+  traceId,
 }) {
   try {
     const response = await axios.post(
       `${RATE_LIMITER_URL}/check`,
+      { key, algorithm, limit, window, cost },
       {
-        key,
-        algorithm,
-        limit,
-        window,
-        cost,
+        timeout: 200,
+        headers: {
+          "x-trace-id": traceId, // 🔥 propagate
+        },
       },
-      {
-        timeout: 200, // fail fast
-      }
     );
 
     return response.data;
