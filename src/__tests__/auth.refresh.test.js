@@ -1,15 +1,23 @@
 const request = require("supertest");
 const app = require("../app");
-const crypto = require("crypto");
 
 // Mock Postgres
 jest.mock("../db/postgres", () => ({
     query: jest.fn(),
 }));
 
-// Mock bcrypt or your hashing library
+// Mock bcrypt
 jest.mock("bcrypt", () => ({
     compare: jest.fn(),
+}));
+
+// Mock user model
+jest.mock("../models/user.model", () => ({
+    findById: jest.fn().mockResolvedValue({
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        role: "admin",
+        is_active: true,
+    }),
 }));
 
 const db = require("../db/postgres");
@@ -25,10 +33,10 @@ describe("Refresh Token Flow", () => {
     });
 
     it("should refresh tokens successfully", async () => {
-        // Mock successful hash comparison
         bcrypt.compare.mockResolvedValueOnce(true);
 
         db.query
+            // Find refresh token
             .mockResolvedValueOnce({
                 rows: [
                     {
@@ -39,8 +47,12 @@ describe("Refresh Token Flow", () => {
                     },
                 ],
             })
-            .mockResolvedValueOnce({}) // revoke old token
-            .mockResolvedValueOnce({}); // create new token
+
+            // Revoke old token
+            .mockResolvedValueOnce({})
+
+            // Insert new refresh token
+            .mockResolvedValueOnce({});
 
         const res = await request(app)
             .post("/auth/refresh")
