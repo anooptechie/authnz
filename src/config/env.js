@@ -26,7 +26,7 @@ module.exports = Object.freeze({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
     database: process.env.POSTGRES_DB,
-    ssl: { rejectUnauthorized: false }, // ← added for Supabase
+    ssl: process.env.NODE_ENV === 'production' && process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : false, // ← added for Supabase
   },
   redis: {
     url: process.env.REDIS_URL, // ← changed
