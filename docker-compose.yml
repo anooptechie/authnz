@@ -16,3 +16,6 @@ services:
     container_name: auth_redis
     ports:
       - "6379:6379"
+
+
+
