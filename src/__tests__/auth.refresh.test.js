@@ -1,43 +1,46 @@
 const request = require("supertest");
 const app = require("../app");
+const crypto = require("crypto");
 
-// 🔥 Mock Postgres (THIS WAS MISSING)
+// Mock Postgres
 jest.mock("../db/postgres", () => ({
     query: jest.fn(),
 }));
 
+// Mock bcrypt or your hashing library
+jest.mock("bcrypt", () => ({
+    compare: jest.fn(),
+}));
+
 const db = require("../db/postgres");
+const bcrypt = require("bcrypt");
 
 describe("Refresh Token Flow", () => {
     const userId = "123e4567-e89b-12d3-a456-426614174000";
-
     let refreshToken;
 
     beforeEach(() => {
         jest.clearAllMocks();
-
-        // 🔥 IMPORTANT: Your system does NOT use JWT refresh tokens
-        // It uses random tokens → so just simulate a string
         refreshToken = "valid-refresh-token";
     });
 
     it("should refresh tokens successfully", async () => {
-        // 🔹 Step 1: findByHash → token exists
+        // Mock successful hash comparison
+        bcrypt.compare.mockResolvedValueOnce(true);
+
         db.query
             .mockResolvedValueOnce({
                 rows: [
                     {
                         user_id: userId,
-                        token_hash: "hashed",
+                        token_hash: "hashed-token-value",
                         revoked: false,
                         expires_at: new Date(Date.now() + 100000),
                     },
                 ],
             })
-            // 🔹 Step 2: revokeByHash
-            .mockResolvedValueOnce({})
-            // 🔹 Step 3: create new token
-            .mockResolvedValueOnce({});
+            .mockResolvedValueOnce({}) // revoke old token
+            .mockResolvedValueOnce({}); // create new token
 
         const res = await request(app)
             .post("/auth/refresh")
@@ -49,12 +52,14 @@ describe("Refresh Token Flow", () => {
     });
 
     it("should reject reused refresh token (revoked)", async () => {
+        bcrypt.compare.mockResolvedValueOnce(true);
+
         db.query.mockResolvedValueOnce({
             rows: [
                 {
                     user_id: userId,
-                    token_hash: "hashed",
-                    revoked: true, // 🔥 already used
+                    token_hash: "hashed-token-value",
+                    revoked: true,
                     expires_at: new Date(Date.now() + 100000),
                 },
             ],
@@ -68,7 +73,6 @@ describe("Refresh Token Flow", () => {
     });
 
     it("should reject invalid refresh token", async () => {
-        // 🔥 No token found
         db.query.mockResolvedValueOnce({
             rows: [],
         });
