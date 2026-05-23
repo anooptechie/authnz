@@ -20,6 +20,7 @@ jobs:
       POSTGRES_DB: test
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      REDIS_URL: redis://localhost:6379
       JWT_SECRET: test-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       JWT_EXPIRES_IN: 15m
@@ -39,3 +40,22 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            git pull origin main
+            npm ci --omit=dev
+            pm2 restart auth-service --update-env
+            pm2 save
