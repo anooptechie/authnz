@@ -1,0 +1,406 @@
+{
+  "info": {
+    "name": "Auth Service — authnz",
+    "description": "Complete API reference for the authnz Auth Service.\n\nBase URL: http://52.7.155.214\n\nVariables:\n- access_token → last login token (general use)\n- admin_token → token after DB promotion to admin\n- user_token → viewer token specifically\n- refresh_token → current refresh token\n- user_id → used in role update and deactivate",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://52.7.155.214", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
+    { "key": "user_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "Dependency-aware health check. Returns 503 if Postgres or Redis is down."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Authentication Flow",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Register a new user. Default role is viewer."
+          }
+        },
+        {
+          "name": "Login (Viewer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('user_token', json.accessToken);",
+                  "pm.collectionVariables.set('refresh_token', json.refreshToken);",
+                  "console.log('Viewer token saved to user_token');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Login as viewer. Token saved to {{user_token}}. Does NOT overwrite admin_token."
+          }
+        },
+        {
+          "name": "Access Protected Route",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "description": "Access a protected route using viewer token."
+          }
+        },
+        {
+          "name": "Refresh Token Rotation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.accessToken) {",
+                  "  pm.collectionVariables.set('user_token', json.accessToken);",
+                  "  pm.collectionVariables.set('refresh_token', json.refreshToken);",
+                  "  console.log('New tokens saved to user_token and refresh_token');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "description": "Rotate refresh token. Save Token A manually before running this if testing theft detection."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/logout",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "description": "Revoke access token and refresh token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Security Scenarios",
+      "item": [
+        {
+          "name": "Refresh Token Theft Detection",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"<paste-old-Token-A-here-manually>\"\n}"
+            },
+            "description": "Step 1: Login, copy refresh token manually (Token A).\nStep 2: Hit Refresh Token Rotation — Token A rotated to Token B.\nStep 3: Paste Token A here manually.\nExpect 401 + all sessions revoked.\nStep 4: Try Token B — also rejected now."
+          }
+        },
+        {
+          "name": "Access After Logout — Blocklist Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer <paste-revoked-token-here>" }],
+            "description": "Use a revoked access token after logout. Expect 401 Token revoked."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. RBAC Scenarios",
+      "item": [
+        {
+          "name": "Viewer — Admin Route (Forbidden)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "description": "Viewer trying admin route. Expect 403 Forbidden."
+          }
+        },
+        {
+          "name": "Missing Token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin",
+            "description": "No Authorization header. Expect 401 Missing token."
+          }
+        },
+        {
+          "name": "Invalid Token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin",
+            "header": [{ "key": "Authorization", "value": "Bearer invalidtoken" }],
+            "description": "Malformed token. Expect 401 Invalid token."
+          }
+        },
+        {
+          "name": "Admin — Admin Route (Allowed)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "description": "Promote user in DB first, login again to get admin_token, then hit this. Expect 200."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. User Management",
+      "item": [
+        {
+          "name": "Step 1 — Register",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Register a new user. Default role is viewer."
+          }
+        },
+        {
+          "name": "Step 2 — Login as Viewer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('user_token', json.accessToken);",
+                  "pm.collectionVariables.set('refresh_token', json.refreshToken);",
+                  "console.log('Viewer token saved to user_token');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Login as viewer. Saved to {{user_token}}."
+          }
+        },
+        {
+          "name": "Step 3 — GET /users as Viewer (Forbidden)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "description": "Viewer trying to list users. Expect 403 Forbidden."
+          }
+        },
+        {
+          "name": "Step 4 — GET /users/me",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "description": "Returns current user profile. role should be viewer."
+          }
+        },
+        {
+          "name": "Step 5 — Promote to Admin (DB step — see description)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "Run this in your terminal:\n\nssh -i ~/.ssh/auth-service-key.pem deploy@52.7.155.214\nsudo -u postgres psql -d auth_db\nUPDATE users SET role = 'admin' WHERE email = 'test@example.com';\n\\q\n\nThen proceed to Step 6."
+          }
+        },
+        {
+          "name": "Step 6 — Login Again (Get Admin Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('admin_token', json.accessToken);",
+                  "console.log('Admin token saved to admin_token');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Login again after DB promotion. Token now has role: admin. Saved to {{admin_token}}."
+          }
+        },
+        {
+          "name": "Step 7 — GET /users as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.users && json.users.length > 0) {",
+                  "  pm.collectionVariables.set('user_id', json.users[0].id);",
+                  "  console.log('User ID saved:', json.users[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "description": "Admin listing all users. First user ID saved to {{user_id}} automatically."
+          }
+        },
+        {
+          "name": "Step 8 — Update User Role",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/users/{{user_id}}/role",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"manager\"\n}"
+            },
+            "description": "Admin updating a user's role."
+          }
+        },
+        {
+          "name": "Step 9 — Deactivate User",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/users/{{user_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "description": "Soft-delete user and revoke all their tokens."
+          }
+        },
+        {
+          "name": "Step 10 — Login After Deactivation (Should Fail)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Deactivated user trying to login. Expect 401 Invalid credentials."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. JWT Claims Validation",
+      "item": [
+        {
+          "name": "Valid Token (Control Test)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "description": "Control test — valid token should pass. Expect 200."
+          }
+        },
+        {
+          "name": "Tampered Role (superadmin)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer <tampered-token-superadmin-role>" }],
+            "description": "Modify token at jwt.io — set role to superadmin.\nExpect 401 Invalid token claims (role)."
+          }
+        },
+        {
+          "name": "Missing userId",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer <tampered-token-missing-userId>" }],
+            "description": "Modify token at jwt.io — remove userId.\nExpect 401 Invalid token claims (userId)."
+          }
+        },
+        {
+          "name": "isActive = false",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer <tampered-token-isActive-false>" }],
+            "description": "Modify token at jwt.io — set isActive to false.\nExpect 401 Account deactivated."
+          }
+        },
+        {
+          "name": "Invalid Token Format",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "header": [{ "key": "Authorization", "value": "Bearer invalidtoken" }],
+            "description": "Malformed JWT. Expect 401 Invalid token."
+          }
+        },
+        {
+          "name": "Missing Authorization Header",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/protected",
+            "description": "No Authorization header. Expect 401 Missing or invalid token format."
+          }
+        }
+      ]
+    }
+  ]
+}
